@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function AuthPage() {
   const [activeTab, setActiveTab] = useState('login');
@@ -14,15 +15,32 @@ export default function AuthPage() {
     aadhaar: ''
   });
 
-  const handleLogin = () => {
+  const router = useRouter();
+
+  const handleLogin = async () => {
     console.log('Login attempt:', loginData);
     // Add your login logic here
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('Login successful! Redirecting to home page.');
+      router.push('/home');
+    } catch (error) {
+      console.error('Login failed:', error);
+    }
   };
 
-  const handleSignup = () => {
+  const handleSignup = async () => {
     console.log('Signup attempt:', signupData);
     // Add your signup logic here
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('Signup successful! Redirecting to home page.');
+      router.push('/home');
+    } catch (error) {
+      console.error('Signup failed:', error);
+    }
   };
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-400 via-orange-400 to-orange-600">
@@ -70,10 +88,6 @@ export default function AuthPage() {
                 </div>
               </div>
             </div>
-
-            <div className="absolute top-20 right-10 w-20 h-20 bg-white bg-opacity-10 rounded-full"></div>
-            <div className="absolute bottom-20 right-20 w-20 h-20 bg-white bg-opacity-10 rounded-full"></div>
-            <div className="absolute top-1/2 right-0 w-40 h-40 bg-white bg-opacity-5 rounded-full transform translate-x-1/2"></div>
           </div>
 
           <div className="flex-1 p-12">
@@ -112,7 +126,7 @@ export default function AuthPage() {
                       type="email"
                       value={loginData.email}
                       onChange={(e) => setLoginData({...loginData, email: e.target.value})}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
+                      className="w-full px-4 py-3 text-black border border-gray-300 rounded-lg  focus:border-transparent transition-all duration-200"
                       placeholder="Enter your email"
                       required
                     />
@@ -126,7 +140,7 @@ export default function AuthPage() {
                       type="password"
                       value={loginData.password}
                       onChange={(e) => setLoginData({...loginData, password: e.target.value})}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
+                      className="w-full px-4 py-3 text-black border border-gray-300 rounded-lg  focus:border-transparent transition-all duration-200"
                       placeholder="Enter your password"
                       required
                     />
@@ -162,7 +176,7 @@ export default function AuthPage() {
                         type="text"
                         value={signupData.name}
                         onChange={(e) => setSignupData({...signupData, name: e.target.value})}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
+                        className="w-full px-4 py-3 text-black border border-gray-300 rounded-lg  focus:border-transparent transition-all duration-200"
                         placeholder="Full name"
                         required
                       />
@@ -176,7 +190,7 @@ export default function AuthPage() {
                         type="tel"
                         value={signupData.phone}
                         onChange={(e) => setSignupData({...signupData, phone: e.target.value})}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
+                        className="w-full px-4 py-3 text-black border border-gray-300 rounded-lg  focus:border-transparent transition-all duration-200"
                         placeholder="Phone number"
                         required
                       />
@@ -191,7 +205,7 @@ export default function AuthPage() {
                       type="email"
                       value={signupData.email}
                       onChange={(e) => setSignupData({...signupData, email: e.target.value})}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
+                      className="w-full px-4 py-3 text-black border border-gray-300 rounded-lg  focus:border-transparent transition-all duration-200"
                       placeholder="Enter your email"
                       required
                     />
@@ -205,7 +219,7 @@ export default function AuthPage() {
                       type="text"
                       value={signupData.aadhaar}
                       onChange={(e) => setSignupData({...signupData, aadhaar: e.target.value})}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
+                      className="w-full px-4 py-3 text-black border border-gray-300 rounded-lg  focus:border-transparent transition-all duration-200"
                       placeholder="12-digit Aadhaar number"
                       maxLength={12}
                       required
@@ -221,7 +235,7 @@ export default function AuthPage() {
                         type="password"
                         value={signupData.password}
                         onChange={(e) => setSignupData({...signupData, password: e.target.value})}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
+                        className="w-full px-4 py-3 text-black border border-gray-300 rounded-lg  focus:border-transparent transition-all duration-200"
                         placeholder="Password"
                         required
                       />
@@ -235,7 +249,7 @@ export default function AuthPage() {
                         type="password"
                         value={signupData.confirmPassword}
                         onChange={(e) => setSignupData({...signupData, confirmPassword: e.target.value})}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
+                        className="w-full px-4 py-3 text-black border border-gray-300 rounded-lg  focus:border-transparent transition-all duration-200"
                         placeholder="Confirm password"
                         required
                       />
