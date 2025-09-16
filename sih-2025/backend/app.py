@@ -5,6 +5,8 @@ from werkzeug.utils import secure_filename
 import docx2txt
 import PyPDF2
 import google.generativeai as genai
+import re
+import json
 
 app = Flask(__name__)
 app.secret_key = '12345'
@@ -91,16 +93,19 @@ Return only valid JSON (no extra commentary).
     model = genai.GenerativeModel("gemini-2.5-flash")
     resp = model.generate_content(prompt)
     # resp.text should be the JSON
+    
 
-    # Optionally you could attempt to parse the JSON here to ensure it's valid
+    raw_text = resp.text.strip()
+
+    # 🧹 Remove ```json ... ``` wrappers if present
+    cleaned = re.sub(r"^```json\s*|\s*```$", "", raw_text, flags=re.MULTILINE).strip()
+
     try:
-        assessment_json = resp.text
-        # If wanted: json.loads(assessment_json) to verify  
+        assessment_dict = json.loads(cleaned)
     except Exception as e:
-        return jsonify({"error": "Failed to parse Gemini response", "response": resp.text}), 500
+        return jsonify({"error": "Failed to parse JSON", "raw": raw_text}), 500
 
-    test()
-    return jsonify({"assessment": assessment_json})
+    return jsonify({"assessment": assessment_dict})
 
 if __name__ == '__main__':
     app.run(debug=True)
