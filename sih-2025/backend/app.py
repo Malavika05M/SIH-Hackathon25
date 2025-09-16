@@ -23,6 +23,72 @@ text = ""
 def test():
     return jsonify({"Res":text})
 
+
+@app.route('/analyse', methods=['POST'])
+def analyse():
+    try:
+        data = request.get_json()
+        assessment = data.get("assessment")
+        answers = data.get("answers")
+
+        if not assessment or not answers:
+            return jsonify({"error": "Missing assessment or answers"}), 400
+
+        # Define the attributes to score
+        attributes = [
+            "communication",
+            "technical_ability",
+            "reasoning",
+            "creativity",
+            "decision_making"
+        ]
+
+        # Build the prompt for Gemini
+        prompt = f"""
+You are an evaluator. You are given:
+
+Assessment:
+{json.dumps(assessment, indent=2)}
+
+Candidate's Answers:
+{json.dumps(answers, indent=2)}
+
+Evaluate the candidate and assign a score (0–10) for each of these attributes:
+{attributes}
+
+Guidelines:
+- Be fair and objective.
+- Consider multiple choice correctness, open_text expression, coding quality, and scenario decisions.
+- If an answer is missing, give 0 for that part.
+- Return valid JSON only, structured like this:
+
+{{
+  "scores": {{
+    "communication": 0-10,
+    "technical_ability": 0-10,
+    "reasoning": 0-10,
+    "creativity": 0-10,
+    "decision_making": 0-10
+  }},
+  "feedback": "One short paragraph of constructive feedback"
+}}
+"""
+
+        # Send to Gemini
+        model = genai.GenerativeModel("gemini-2.5-flash")
+        resp = model.generate_content(prompt)
+
+        raw_text = resp.text.strip()
+        cleaned = re.sub(r"^```json\s*|\s*```$", "", raw_text, flags=re.MULTILINE).strip()
+
+        result = json.loads(cleaned)
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+
 @app.route('/upload', methods=['POST','GET'])
 def upload_file():
     if "document" not in request.files:

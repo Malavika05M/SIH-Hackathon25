@@ -247,28 +247,27 @@ export default function QnAPage() {
           ) : (
             <button
             onClick={async () => {
-                if (!assessment) return;
+              if (!assessment) return;
 
-                const payload = {
-                assessment,
-                answers,
-                };
+              const payload = { assessment, answers };
 
-                try {
+              try {
                 const res = await fetch("http://127.0.0.1:5000/analyse", {
-                    method: "POST",
-                    headers: {
-                    "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify(payload),
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(payload),
                 });
-
                 const result = await res.json();
                 console.log("Analysis result:", result);
-                } catch (err) {
+                // Store in localStorage
+                localStorage.setItem("analysis", JSON.stringify(result));
+                // Redirect
+                window.location.href = "/home";
+              } catch (err) {
                 console.error("Failed to send answers", err);
-                }
+              }
             }}
+
             className="bg-slate-800 text-white px-6 py-3 rounded-lg font-semibold hover:bg-slate-700 transition"
             >
             Submit Assessment
