@@ -246,10 +246,32 @@ export default function QnAPage() {
             </button>
           ) : (
             <button
-              onClick={() => console.log('Collected answers:', answers)}
-              className="bg-slate-800 text-white px-6 py-3 rounded-lg font-semibold hover:bg-slate-700 transition"
+            onClick={async () => {
+                if (!assessment) return;
+
+                const payload = {
+                assessment,
+                answers,
+                };
+
+                try {
+                const res = await fetch("http://127.0.0.1:5000/analyse", {
+                    method: "POST",
+                    headers: {
+                    "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                const result = await res.json();
+                console.log("Analysis result:", result);
+                } catch (err) {
+                console.error("Failed to send answers", err);
+                }
+            }}
+            className="bg-slate-800 text-white px-6 py-3 rounded-lg font-semibold hover:bg-slate-700 transition"
             >
-              Submit Assessment
+            Submit Assessment
             </button>
           )}
         </div>
