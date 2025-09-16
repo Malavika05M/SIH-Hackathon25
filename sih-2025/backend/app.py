@@ -15,6 +15,11 @@ genai.configure(api_key="AIzaSyByaN_8WxREKKumn_vnh2PEfO6tn97q0MM")
 
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+text = ""
+
+@app.route("/test")
+def test():
+    return jsonify({"Res":text})
 
 @app.route('/upload', methods=['POST','GET'])
 def upload_file():
@@ -94,7 +99,7 @@ Return only valid JSON (no extra commentary).
     except Exception as e:
         return jsonify({"error": "Failed to parse Gemini response", "response": resp.text}), 500
 
-   
+    test()
     return jsonify({"assessment": assessment_json})
 
 if __name__ == '__main__':
