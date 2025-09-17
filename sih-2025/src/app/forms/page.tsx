@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
+import { useState } from "react";
 
 type Question = {
-  type: 'multiple_choice' | 'open_text' | 'coding' | 'scenario';
+  type: "multiple_choice" | "open_text" | "coding" | "scenario";
   question: string;
   options?: string[];
-  answer_type: 'single' | 'multiple' | 'text';
+  answer_type: "single" | "multiple" | "text";
 };
 
 type Round = {
@@ -29,13 +29,17 @@ export default function QnAPage() {
   // Handle resume upload
   const handleUpload = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const fileInput = (e.currentTarget.elements.namedItem("resume") as HTMLInputElement);
+
+    const fileInput = e.currentTarget.elements.namedItem(
+      "resume"
+    ) as HTMLInputElement;
     if (!fileInput?.files?.length) return;
 
     const formData = new FormData();
     formData.append("document", fileInput.files[0]);
 
     setUploading(true);
+
     try {
       const res = await fetch("http://127.0.0.1:5000/upload", {
         method: "POST",
@@ -43,10 +47,18 @@ export default function QnAPage() {
       });
 
       const data = await res.json();
+
       if (data.assessment) {
         const parsed: Assessment = data.assessment;
+
+        // Save assessment
         setAssessment(parsed);
         localStorage.setItem("assessment", JSON.stringify(parsed));
+
+        // Initialize answers if not already saved
+        if (!localStorage.getItem("assessmentAnswers")) {
+          localStorage.setItem("assessmentAnswers", JSON.stringify({}));
+        }
       }
     } catch (err) {
       console.error("Upload failed", err);
@@ -55,7 +67,12 @@ export default function QnAPage() {
     }
   };
 
-  const handleChange = (roundIndex: number, qIndex: number, value: string) => {
+  // Handle changes to answers
+  const handleChange = (
+    roundIndex: number,
+    qIndex: number,
+    value: string
+  ) => {
     const key = `${roundIndex}-${qIndex}`;
     setAnswers((prev) => {
       const prevVal = prev[key];
@@ -80,7 +97,8 @@ export default function QnAPage() {
             Upload Your Resume
           </h1>
           <p className="text-gray-600 mb-6">
-            Please upload your PDF or DOCX resume to generate your personalized assessment.
+            Please upload your PDF or DOCX resume to generate your personalized
+            assessment.
           </p>
           <form onSubmit={handleUpload} className="space-y-4">
             <input
@@ -103,7 +121,7 @@ export default function QnAPage() {
     );
   }
 
-  // Normal Assessment UI (your existing code)
+  // Normal Assessment UI
   const round = assessment.rounds[activeRound];
   const isLastRound = activeRound === assessment.rounds.length - 1;
 
@@ -122,8 +140,8 @@ export default function QnAPage() {
               onClick={() => setActiveRound(index)}
               className={`px-4 py-2 rounded-lg font-semibold transition-all duration-200 ${
                 activeRound === index
-                  ? 'bg-orange-500 text-white shadow-md'
-                  : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                  ? "bg-orange-500 text-white shadow-md"
+                  : "bg-gray-100 text-gray-800 hover:bg-gray-200"
               }`}
             >
               {r.name}
@@ -133,7 +151,9 @@ export default function QnAPage() {
 
         {/* Active Round Content */}
         <div>
-          <h2 className="text-2xl font-semibold text-orange-600">{round.name}</h2>
+          <h2 className="text-2xl font-semibold text-orange-600">
+            {round.name}
+          </h2>
           <p className="text-black mb-4">
             {round.description} ({round.time_limit} mins)
           </p>
@@ -141,7 +161,8 @@ export default function QnAPage() {
           <div className="space-y-6">
             {round.questions.map((q, qIndex) => {
               const key = `${activeRound}-${qIndex}`;
-              const value = answers[key] ?? (q.answer_type === 'multiple' ? [] : '');
+              const value =
+                answers[key] ?? (q.answer_type === "multiple" ? [] : "");
 
               return (
                 <div
@@ -149,10 +170,14 @@ export default function QnAPage() {
                   className="p-6 border rounded-xl shadow-sm bg-gray-50"
                 >
                   <h3 className="text-lg font-semibold mb-3 text-black">
-                    Q{qIndex + 1}. {q.question}
+                    Q{qIndex + 1}.{" "}
+                    {typeof q.question === "string"
+                      ? q.question
+                      : JSON.stringify(q.question)}
                   </h3>
 
-                  {q.type === 'multiple_choice' && q.options && (
+                  {/* Multiple Choice */}
+                  {q.type === "multiple_choice" && q.options && (
                     <div className="space-y-2 text-black">
                       {q.options.map((opt, i) => (
                         <label
@@ -160,7 +185,11 @@ export default function QnAPage() {
                           className="flex items-center space-x-2 cursor-pointer"
                         >
                           <input
-                            type={q.answer_type === 'multiple' ? 'checkbox' : 'radio'}
+                            type={
+                              q.answer_type === "multiple"
+                                ? "checkbox"
+                                : "radio"
+                            }
                             name={`round-${activeRound}-q-${qIndex}`}
                             value={opt}
                             checked={
@@ -178,7 +207,8 @@ export default function QnAPage() {
                     </div>
                   )}
 
-                  {q.type === 'open_text' && (
+                  {/* Open Text */}
+                  {q.type === "open_text" && (
                     <textarea
                       className="w-full border rounded-lg p-3 text-black"
                       rows={3}
@@ -190,7 +220,8 @@ export default function QnAPage() {
                     />
                   )}
 
-                  {q.type === 'coding' && (
+                  {/* Coding */}
+                  {q.type === "coding" && (
                     <textarea
                       className="w-full font-mono border rounded-lg p-3 bg-black text-green-300"
                       rows={6}
@@ -202,7 +233,8 @@ export default function QnAPage() {
                     />
                   )}
 
-                  {q.type === 'scenario' && (
+                  {/* Scenario */}
+                  {q.type === "scenario" && (
                     <textarea
                       className="w-full border rounded-lg p-3 text-black"
                       rows={4}
@@ -226,8 +258,8 @@ export default function QnAPage() {
             onClick={() => setActiveRound((prev) => Math.max(0, prev - 1))}
             className={`px-6 py-3 rounded-lg font-semibold transition ${
               activeRound === 0
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-gray-200 text-black hover:bg-gray-300'
+                ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                : "bg-gray-200 text-black hover:bg-gray-300"
             }`}
           >
             Previous
@@ -246,31 +278,36 @@ export default function QnAPage() {
             </button>
           ) : (
             <button
-            onClick={async () => {
-              if (!assessment) return;
+              onClick={async () => {
+                if (!assessment) return;
 
-              const payload = { assessment, answers };
+                const payload = { assessment, answers };
 
-              try {
-                const res = await fetch("http://127.0.0.1:5000/analyse", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify(payload),
-                });
-                const result = await res.json();
-                console.log("Analysis result:", result);
-                // Store in localStorage
-                localStorage.setItem("analysis", JSON.stringify(result));
-                // Redirect
-                window.location.href = "/home";
-              } catch (err) {
-                console.error("Failed to send answers", err);
-              }
-            }}
+                try {
+                  const res = await fetch("http://127.0.0.1:5000/analyse", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                  });
+                  const result = await res.json();
 
-            className="bg-slate-800 text-white px-6 py-3 rounded-lg font-semibold hover:bg-slate-700 transition"
+                  // Save results + assessment + answers
+                  localStorage.setItem("analysis", JSON.stringify(result));
+                  localStorage.setItem("assessment", JSON.stringify(assessment));
+                  localStorage.setItem(
+                    "assessmentAnswers",
+                    JSON.stringify(answers)
+                  );
+
+                  // Redirect to submission page
+                  window.location.href = "/submission";
+                } catch (err) {
+                  console.error("Failed to send answers", err);
+                }
+              }}
+              className="bg-slate-800 text-white px-6 py-3 rounded-lg font-semibold hover:bg-slate-700 transition"
             >
-            Submit Assessment
+              Submit Assessment
             </button>
           )}
         </div>

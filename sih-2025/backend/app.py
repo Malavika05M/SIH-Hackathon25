@@ -7,102 +7,125 @@ import PyPDF2
 import google.generativeai as genai
 import re
 import json
+from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = '12345'
 CORS(app, supports_credentials=True)
 
-# configure your Gemini / GenAI API key (e.g. set environment variable GEMINI_API_KEY)
-genai.configure(api_key="AIzaSyByaN_8WxREKKumn_vnh2PEfO6tn97q0MM")
+# === Configure Gemini API key ===
+API_KEY = "AIzaSyByaN_8WxREKKumn_vnh2PEfO6tn97q0MM"
+if not API_KEY:
+    raise RuntimeError("Please set the GEMINI_API_KEY environment variable.")
+genai.configure(api_key=API_KEY)
 
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-text = ""
+
+def clean_model_output(raw_text: str) -> str:
+    """Remove common wrappers like ```json fences."""
+    cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw_text, flags=re.MULTILINE).strip()
+    return cleaned
+
+def append_submission_record(record: dict):
+    path = os.path.join(UPLOAD_FOLDER, "submissions.jsonl")
+    try:
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+    except Exception:
+        pass  # don’t block request if logging fails
 
 @app.route("/test")
 def test():
-    return jsonify({"Res":text})
+    return jsonify({"status": "ok"})
 
 @app.route('/analyse', methods=['POST'])
 def analyse():
+    """
+    Analyse candidate answers against assessment.
+    Returns scores, skill graph, feedback, internships, companies.
+    Always returns JSON (200), even on parsing errors.
+    """
     try:
-        data = request.get_json()
-        assessment = data.get("assessment")
-        answers = data.get("answers")
+        payload = request.get_json(force=True)
+        assessment = payload.get("assessment")
+        answers = payload.get("answers")
+        meta = payload.get("meta", {})
 
         if not assessment or not answers:
             return jsonify({"error": "Missing assessment or answers"}), 400
 
-        # Define the attributes to score
         attributes = [
-            "communication",
-            "technical_ability",
-            "reasoning",
-            "creativity",
-            "decision_making"
+            "communication", "technical_ability",
+            "reasoning", "creativity", "decision_making"
         ]
 
-        # Build the prompt for Gemini
         prompt = f"""
-You are an evaluator. You are given:
+You are a neutral evaluator. You are given the following assessment specification and a candidate's answers.
 
-Assessment:
+Assessment (JSON):
 {json.dumps(assessment, indent=2)}
 
-Candidate's Answers:
+Candidate Answers (JSON):
 {json.dumps(answers, indent=2)}
 
-Evaluate the candidate and assign a score (0-10) for each of these attributes:
-{attributes}
+Meta:
+{json.dumps(meta, indent=2)}
 
-Also, recommend 3-5 suitable internship roles based on their performance and profile. For each internship, provide:
-- Role title
-- Organization/Department
-- Brief description (1-2 sentences)
-- Match score (percentage)
+Task:
+1) Score attributes {attributes} (0–10 each).
+2) Provide skill_graph (6–10 skills, 0–100).
+3) Suggest 3–5 internships.
+4) Suggest 3–7 companies.
+5) Write a short feedback paragraph.
 
-Guidelines:
-- Be fair and objective.
-- Consider multiple choice correctness, open_text expression, coding quality, and scenario decisions.
-- If an answer is missing, give 0 for that part.
-- Return valid JSON only, structured like this:
-
-{{
-  "scores": {{
-    "communication": 0-10,
-    "technical_ability": 0-10,
-    "reasoning": 0-10,
-    "creativity": 0-10,
-    "decision_making": 0-10
-  }},
-  "feedback": "One short paragraph of constructive feedback",
-  "internships": [
-    {{
-      "role": "Role title",
-      "organization": "Organization/Department",
-      "description": "Brief description",
-      "match_score": 85
-    }},
-    // more internships...
-  ]
-}}
+Return ONLY valid JSON, nothing else.
 """
 
-        # Send to Gemini
         model = genai.GenerativeModel("gemini-2.5-flash")
         resp = model.generate_content(prompt)
-
         raw_text = resp.text.strip()
-        cleaned = re.sub(r"^```json\s*|\s*```$", "", raw_text, flags=re.MULTILINE).strip()
+        cleaned = clean_model_output(raw_text)
 
-        result = json.loads(cleaned)
-        return jsonify(result)
+        # Try parsing JSON
+        result = None
+        try:
+            result = json.loads(cleaned)
+        except Exception as parse_err:
+            # Fallback: attempt common fixes
+            fixed = re.sub(r",\s*}", "}", cleaned)
+            fixed = re.sub(r",\s*]", "]", fixed)
+            try:
+                result = json.loads(fixed)
+            except Exception:
+                # Return structured error instead of 500
+                return jsonify({
+                    "error": "Failed to parse AI JSON",
+                    "parse_error": str(parse_err),
+                    "raw": raw_text,
+                    "cleaned": cleaned
+                }), 200  # ✅ return 200 for frontend handling
+
+        record = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "meta": meta,
+            "assessment": assessment,
+            "answers": answers,
+            "ai_result": result
+        }
+        append_submission_record(record)
+
+        return jsonify(result), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/upload', methods=['POST','GET'])
+
+@app.route('/upload', methods=['POST'])
 def upload_file():
+    """
+    Accept .docx/.pdf → extract text → generate assessment JSON using Gemini.
+    """
     if "document" not in request.files:
         return jsonify({"error": "No file uploaded"}), 400
 
@@ -112,21 +135,17 @@ def upload_file():
     file.save(filepath)
 
     text = ""
-    if filename.endswith(".docx"):
+    if filename.lower().endswith(".docx"):
         text = docx2txt.process(filepath)
-    elif filename.endswith(".pdf"):
+    elif filename.lower().endswith(".pdf"):
         with open(filepath, "rb") as f:
             reader = PyPDF2.PdfReader(f)
-            pages = []
-            for page in reader.pages:
-                ptext = page.extract_text()
-                if ptext:
-                    pages.append(ptext)
+            pages = [page.extract_text() for page in reader.pages if page.extract_text()]
             text = " ".join(pages)
     else:
         return jsonify({"error": "Unsupported file type"}), 400
 
-    # Now prompt Gemini to analyse the document and produce assessment JSON
+    # Prompt to generate assessment JSON
     prompt = f"""
 You are given the following document text from an internship candidate:
 
@@ -134,21 +153,20 @@ You are given the following document text from an internship candidate:
 {text}
 \"\"\"
 
-Please analyse this document and produce a JSON structure for an internship candidate assessment. The JSON should be divided into rounds, each containing questions. The assessment must take about 10 minutes in total and should evaluate multiple dimensions of the candidate without being a strict pass/fail test.  
+Please analyse this document and produce a JSON structure for an internship candidate assessment. 
 
-Use the following JSON structure:
-
+Use this JSON structure:
 {{
   "rounds": [
     {{
       "name": "Round Name",
-      "description": "Short purpose of this round",
+      "description": "Short purpose",
       "time_limit": "minutes",
       "questions": [
         {{
           "type": "multiple_choice | open_text | coding | scenario",
-          "question": "Question text here",
-          "options": ["Option A", "Option B", "Option C"],
+          "question": "Question text",
+          "options": ["A", "B", "C"],
           "answer_type": "single | multiple | text"
         }}
       ]
@@ -156,33 +174,33 @@ Use the following JSON structure:
   ]
 }}
 
-Follow these content guidelines:
-- Round 1: Quick Profile (1 min) — Multiple choice self-reflection questions.
-- Round 2: Aptitude & Reasoning (2 min) — Logical / quantitative MCQs.
-- Round 3: Technical Round (3 min) — Domain-specific (if candidate is CS, include coding / output prediction; if non-tech, use case-based MCQs).
-- Round 4: Scenario-Based Judgment (2 min) — Situational decision-making questions.
-- Round 5: Creativity & Reflection (2 min) — Open text prompts (short written responses).
-Ensure each round has 3-5 questions. Keep wording simple, clear, and concise.
+Guidelines:
+- Round 1: Quick Profile (1 min)
+- Round 2: Aptitude & Reasoning (2 min)
+- Round 3: Technical (3 min)
+- Round 4: Scenario Judgment (2 min)
+- Round 5: Creativity & Reflection (2 min)
+Each round: 3–5 questions.
 
-Return only valid JSON (no extra commentary).
+Return ONLY valid JSON.
 """
 
-    # send to Gemini
     model = genai.GenerativeModel("gemini-2.5-flash")
     resp = model.generate_content(prompt)
-    # resp.text should be the JSON
-    
     raw_text = resp.text.strip()
-
-    # 🧹 Remove ```json ... ``` wrappers if present
-    cleaned = re.sub(r"^```json\s*|\s*```$", "", raw_text, flags=re.MULTILINE).strip()
+    cleaned = clean_model_output(raw_text)
 
     try:
         assessment_dict = json.loads(cleaned)
     except Exception as e:
-        return jsonify({"error": "Failed to parse JSON", "raw": raw_text}), 500
+        return jsonify({
+            "error": "Failed to parse JSON",
+            "raw": raw_text,
+            "cleaned": cleaned
+        }), 200  # return 200 for frontend
 
-    return jsonify({"assessment": assessment_dict})
+    return jsonify({"assessment": assessment_dict}), 200
+
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)
