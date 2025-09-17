@@ -25,6 +25,8 @@ export default function QnAPage() {
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
   const [activeRound, setActiveRound] = useState(0);
   const [uploading, setUploading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
 
   // Handle resume upload
   const handleUpload = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -218,6 +220,30 @@ export default function QnAPage() {
             })}
           </div>
         </div>
+        {submitting && (
+          <div className="fixed inset-0 bg-black bg-opacity-80 flex flex-col items-center justify-center z-50">
+            <div className="text-white text-2xl font-bold mb-6 animate-pulse">
+              Processing Your Application...
+            </div>
+
+            <div className="h-24 overflow-hidden relative w-80">
+              <div className="absolute animate-scrollText space-y-4">
+                <p className="text-orange-400 font-medium">🔍 Analyzing your answers...</p>
+                <p className="text-orange-400 font-medium">📊 Evaluating skills & strengths...</p>
+                <p className="text-orange-400 font-medium">🤝 Matching internships...</p>
+                <p className="text-orange-400 font-medium">✅ Finalizing recommendations...</p>
+              </div>
+            </div>
+
+            <div className="mt-8">
+              <div className="w-64 h-2 bg-gray-700 rounded-full overflow-hidden">
+                <div className="h-full w-1/2 bg-orange-500 animate-loadingBar"></div>
+              </div>
+            </div>
+          </div>
+        )}
+
+
 
         {/* Navigation & Submit */}
         <div className="mt-10 flex justify-between">
@@ -246,33 +272,33 @@ export default function QnAPage() {
             </button>
           ) : (
             <button
-            onClick={async () => {
-              if (!assessment) return;
+              onClick={async () => {
+                if (!assessment) return;
+                setSubmitting(true);
 
-              const payload = { assessment, answers };
+                const payload = { assessment, answers };
 
-              try {
-                const res = await fetch("http://127.0.0.1:5000/analyse", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify(payload),
-                });
-                const result = await res.json();
-                console.log("Analysis result:", result);
-                // Store in localStorage
-                localStorage.setItem("analysis", JSON.stringify(result));
-                // Redirect
-                window.location.href = "/home";
-              } catch (err) {
-                console.error("Failed to send answers", err);
-              }
-            }}
-
-            className="bg-slate-800 text-white px-6 py-3 rounded-lg font-semibold hover:bg-slate-700 transition"
+                try {
+                  const res = await fetch("http://127.0.0.1:5000/analyse", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                  });
+                  const result = await res.json();
+                  localStorage.setItem("analysis", JSON.stringify(result));
+                  window.location.href = "/home";
+                } catch (err) {
+                  console.error("Failed to send answers", err);
+                  setSubmitting(false); // stop loading if error
+                }
+              }}
+              disabled={submitting}
+              className="bg-slate-800 text-white px-6 py-3 rounded-lg font-semibold hover:bg-slate-700 transition disabled:opacity-50"
             >
-            Submit Assessment
+              {submitting ? "Submitting..." : "Submit Assessment"}
             </button>
           )}
+
         </div>
       </div>
     </div>

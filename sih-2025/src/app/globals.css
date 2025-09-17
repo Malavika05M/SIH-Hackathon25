@@ -24,3 +24,24 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@keyframes scrollText {
+  0%   { transform: translateY(0%); }
+  25%  { transform: translateY(-25%); }
+  50%  { transform: translateY(-50%); }
+  75%  { transform: translateY(-75%); }
+  100% { transform: translateY(0%); }
+}
+
+.animate-scrollText {
+  animation: scrollText 6s linear infinite;
+}
+
+@keyframes loadingBar {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.animate-loadingBar {
+  animation: loadingBar 2s linear infinite;
+}
