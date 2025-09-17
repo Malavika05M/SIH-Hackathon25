@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 type Question = {
   type: 'multiple_choice' | 'open_text' | 'coding' | 'scenario';

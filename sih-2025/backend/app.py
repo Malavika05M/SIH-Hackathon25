@@ -23,7 +23,6 @@ text = ""
 def test():
     return jsonify({"Res":text})
 
-
 @app.route('/analyse', methods=['POST'])
 def analyse():
     try:
@@ -53,8 +52,14 @@ Assessment:
 Candidate's Answers:
 {json.dumps(answers, indent=2)}
 
-Evaluate the candidate and assign a score (0–10) for each of these attributes:
+Evaluate the candidate and assign a score (0-10) for each of these attributes:
 {attributes}
+
+Also, recommend 3-5 suitable internship roles based on their performance and profile. For each internship, provide:
+- Role title
+- Organization/Department
+- Brief description (1-2 sentences)
+- Match score (percentage)
 
 Guidelines:
 - Be fair and objective.
@@ -70,7 +75,16 @@ Guidelines:
     "creativity": 0-10,
     "decision_making": 0-10
   }},
-  "feedback": "One short paragraph of constructive feedback"
+  "feedback": "One short paragraph of constructive feedback",
+  "internships": [
+    {{
+      "role": "Role title",
+      "organization": "Organization/Department",
+      "description": "Brief description",
+      "match_score": 85
+    }},
+    // more internships...
+  ]
 }}
 """
 
@@ -86,8 +100,6 @@ Guidelines:
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-
 
 @app.route('/upload', methods=['POST','GET'])
 def upload_file():
@@ -150,7 +162,7 @@ Follow these content guidelines:
 - Round 3: Technical Round (3 min) — Domain-specific (if candidate is CS, include coding / output prediction; if non-tech, use case-based MCQs).
 - Round 4: Scenario-Based Judgment (2 min) — Situational decision-making questions.
 - Round 5: Creativity & Reflection (2 min) — Open text prompts (short written responses).
-Ensure each round has 3–5 questions. Keep wording simple, clear, and concise.
+Ensure each round has 3-5 questions. Keep wording simple, clear, and concise.
 
 Return only valid JSON (no extra commentary).
 """
@@ -160,7 +172,6 @@ Return only valid JSON (no extra commentary).
     resp = model.generate_content(prompt)
     # resp.text should be the JSON
     
-
     raw_text = resp.text.strip()
 
     # 🧹 Remove ```json ... ``` wrappers if present
